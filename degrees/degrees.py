@@ -90,10 +90,50 @@ def shortest_path(source, target):
     that connect the source to the target.
 
     If no possible path, returns None.
-    """
 
-    # TODO
-    raise NotImplementedError
+    source: the id of the source person
+    target: the id of the target person
+    """
+    visited_state = set()
+    frontier = QueueFrontier()
+    # Search problems - people is the state, movie is the action
+    # initial state added to frontier
+    initial_state = source
+    frontier.add(Node(initial_state, None, None))
+    # person_id as state
+    while True:
+        # pick one out
+        if not frontier.empty():
+            curr_node = frontier.remove()
+            visited_state.add(curr_node.state)
+        else:
+            # if the frontier is empty, fail to find a path
+            return None
+        if is_terminal_state(curr_node.state, target): # test terminates
+            # if is goal, terminates
+            # use Node's attr to backtrack
+            return backtrack_path(curr_node)
+        else:
+            # else, expand the frontier by adding the neighbor
+            for m, p in neighbors_for_person(curr_node.state):
+                if p not in visited_state:
+                    # avoid adding visited state
+                    frontier.add(Node(p, curr_node, m))
+
+
+def backtrack_path(target_node):
+    """ return a list from source_node to target_node """
+    curr_node = target_node
+    path = []
+    while curr_node.parent is not None: # ignore the initial state
+        path.append((curr_node.action, curr_node.state))
+        curr_node = curr_node.parent
+    return path[::-1]
+
+
+def is_terminal_state(state, target):
+    """ check if the terminal state is reached"""
+    return state == target
 
 
 def person_id_for_name(name):

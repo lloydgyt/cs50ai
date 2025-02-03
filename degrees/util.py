@@ -1,6 +1,8 @@
 class Node():
     def __init__(self, state, parent, action):
         self.state = state
+        # parent is also node, so that we can backtrack
+        # so that we can node.parent.parent.parent.parent....
         self.parent = parent
         self.action = action
 
