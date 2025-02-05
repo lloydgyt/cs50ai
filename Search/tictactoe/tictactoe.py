@@ -153,79 +153,31 @@ def utility(board):
     elif who_wins == O: return -1
     else: return 0
 
-# def max_value(board):
-#     """
-#     return the value of the given BOARD under using max strategy
-#     """
-#     if terminal(board):
-#         return utility(board)
-#     else:
-#         value = -1 # set a smallest value at first
-#         valid_actions = actions(board)
-#         for action in valid_actions:
-#             next_value = min_value(result(board, action))
-#             value = value if value > next_value else next_value
-#         return value
-
-
-# def min_value(board):
-#     """
-#     return the value of the given BOARD under using min strategy
-#     """
-#     if terminal(board):
-#         return utility(board)
-#     else:
-#         value = 1 # set a smallest value at first
-#         valid_actions = actions(board)
-#         for action in valid_actions:
-#             next_value = max_value(result(board, action))
-#         # TODO maybe a little pruning is helpful
-#             value = value if value < next_value else next_value
-#         return value
-
-
 def minimax(board):
     """
     Returns the optimal action for the current player on the board.
+
+    >>> board = initial_state()
+    >>> board = result(board, (0, 0))
+    >>> board = result(board, (1, 1))
+    >>> board = result(board, (0, 1))
+    >>> minimax(board)
+    (0, 2)
     """
     def value_and_action(board):
         """
         calculate the value of BOARD by simulating entire games
-        return the value of BOARD, and the optimal_action to get that value
+        return the value of BOARD ([0]), and the OPTIMAL_ACTION ([1]) given the BOARD
         """
-        # TODO its purpose should not be limited at returning a value
-        # this fn derives the actions too, which is also useful! 
-        # return the value of the given BOARD
         if terminal(board):
             return utility(board), None
         else:
             whos_turn = player(board)
             valid_actions = actions(board)
-            # TODO maybe a little pruning is helpful
-
+            possible_value_action = [(value_and_action(result(board, action))[0], action) for action in valid_actions]
             if whos_turn == X:
-                value_and_action_pair = [value_and_action(result(board, action)) for action in valid_actions]
-                return max()
+                # TODO maybe a little pruning is helpful
+                return max(possible_value_action, key=lambda x:x[0])
             else:
-                return min([value_and_action(result(board, action)) for action in valid_actions])
-    whos_turn = player(board)
-    valid_actions = actions(board)
-    # function to calculate possible values
-    # FIXME what if valid_action is []
-    assert valid_actions is not None
-    possible_boards = [result(board, action) for action in valid_actions]
-
-    # FIXME don't repeat yourself?
-    if whos_turn == X:
-        # get all states and then calculate value, or get states and then calc values
-        # TODO this is where pruning can happen?
-        return max([possible_boards], key=min_value)
-    elif whos_turn == O:
-        return min([possible_boards], key=max_value)
-    else: # the game has terminated
-        return None
-
-    # max player will want to maxmize the value of the board
-    # min player will want to minimize the value of the board
-    # (how to choose depend on the player)
-    # terminal state has utility, 
+                return min(possible_value_action, key=lambda x:x[0])
+    return value_and_action(board)[1]
