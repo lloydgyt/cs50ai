@@ -165,25 +165,37 @@ def minimax(board):
     >>> minimax(board)
     (0, 2)
     """
-    def value_and_action(board):
+    def value_and_action(board, parent_value, pruning):
         """
         calculate the value of BOARD by simulating entire games
         return the value of BOARD ([0]), and the OPTIMAL_ACTION ([1]) given the BOARD
+
+        add some pruning: if curr_player is X (last player must be O), then if you find
+        any of the possible board have value higher than PARENT_VALUE, you should quit and 
+        return PARENT_VALUE (because you would've return any value >= PARENT_VALUE)
         """
+        # if the game has terminated
         if terminal(board):
             return utility(board), None
+            
         whos_turn = player(board)
         valid_actions = actions(board)
         strategy = {"X": {"init_value": -1,
                           "compare_func": operator.gt},
                     "O": {"init_value": 1,
                           "compare_func": operator.lt}}
+
         value = strategy[whos_turn]["init_value"]
+        compare_func = strategy[whos_turn]["compare_func"]
         optimal_action = None
         for action in valid_actions:
             new_board = result(board, action)
-            new_value = value_and_action(new_board)[0]
-            if strategy[whos_turn]["compare_func"](new_value, value):
+            new_value = value_and_action(new_board, value, True)[0]
+            if pruning and compare_func(new_value, parent_value):
+                # pruning 
+                return parent_value, None
+            if compare_func(new_value, value):
                 value, optimal_action = new_value, action
         return value, optimal_action
-    return value_and_action(board)[1]
+    # TODO this approach is weird - special case!
+    return value_and_action(board, 0, False)[1]
