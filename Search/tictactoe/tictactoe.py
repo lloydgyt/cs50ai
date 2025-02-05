@@ -5,6 +5,7 @@ Tic Tac Toe Player
 import math
 import copy
 from ucb import trace
+import operator
 
 X = "X"
 O = "O"
@@ -171,13 +172,18 @@ def minimax(board):
         """
         if terminal(board):
             return utility(board), None
-        else:
-            whos_turn = player(board)
-            valid_actions = actions(board)
-            possible_value_action = [(value_and_action(result(board, action))[0], action) for action in valid_actions]
-            if whos_turn == X:
-                # TODO maybe a little pruning is helpful
-                return max(possible_value_action, key=lambda x:x[0])
-            else:
-                return min(possible_value_action, key=lambda x:x[0])
+        whos_turn = player(board)
+        valid_actions = actions(board)
+        strategy = {"X": {"init_value": -1,
+                          "compare_func": operator.gt},
+                    "O": {"init_value": 1,
+                          "compare_func": operator.lt}}
+        value = strategy[whos_turn]["init_value"]
+        optimal_action = None
+        for action in valid_actions:
+            new_board = result(board, action)
+            new_value = value_and_action(new_board)[0]
+            if strategy[whos_turn]["compare_func"](new_value, value):
+                value, optimal_action = new_value, action
+        return value, optimal_action
     return value_and_action(board)[1]
