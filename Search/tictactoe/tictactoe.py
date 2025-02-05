@@ -165,37 +165,43 @@ def minimax(board):
     >>> minimax(board)
     (0, 2)
     """
-    def value_and_action(board, parent_value, pruning):
+    strategy = {"X": {"init_value": -1,
+                        "compare_func": operator.gt},
+                "O": {"init_value": 1,
+                        "compare_func": operator.lt}}
+    def value_and_action(board, alpha, beta):
         """
-        calculate the value of BOARD by simulating entire games
-        return the value of BOARD ([0]), and the OPTIMAL_ACTION ([1]) given the BOARD
-
-        add some pruning: if curr_player is X (last player must be O), then if you find
-        any of the possible board have value higher than PARENT_VALUE, you should quit and 
-        return PARENT_VALUE (because you would've return any value >= PARENT_VALUE)
+        ALPHA is the best value max player (X) can have currently
+        BETA is the best value min player (O) can have currently
+        use ALPHA and BETA to determine whether or not to explore
+        a branch
+        when in X's turn, we calculate BETA to determine ALPHA
         """
         # if the game has terminated
         if terminal(board):
             return utility(board), None
-            
+
         whos_turn = player(board)
         valid_actions = actions(board)
-        strategy = {"X": {"init_value": -1,
-                          "compare_func": operator.gt},
-                    "O": {"init_value": 1,
-                          "compare_func": operator.lt}}
-
         value = strategy[whos_turn]["init_value"]
         compare_func = strategy[whos_turn]["compare_func"]
         optimal_action = None
+
+        # simulating games
         for action in valid_actions:
             new_board = result(board, action)
-            new_value = value_and_action(new_board, value, True)[0]
-            if pruning and compare_func(new_value, parent_value):
-                # pruning 
-                return parent_value, None
+            new_value = value_and_action(new_board, alpha, beta)[0]
+            # updating optimal value and action
             if compare_func(new_value, value):
                 value, optimal_action = new_value, action
+                # update alpha, beta
+                if whos_turn == "X":
+                    alpha = value
+                else:
+                    beta = value
+            # pruning
+            if beta < alpha:
+                break
         return value, optimal_action
-    # TODO this approach is weird - special case!
-    return value_and_action(board, 0, False)[1]
+    return value_and_action(board, -1, 1)[1]
+
