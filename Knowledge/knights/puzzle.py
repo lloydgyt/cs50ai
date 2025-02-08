@@ -36,21 +36,21 @@ knowledge0 = And(
 
     # Every sentence spoken by a knight is true, 
     # and every sentence spoken by a knave is false.
-    Or(And(Sentence0A, AKnight), And(Not(Sentence0A), AKnave))
+    Biconditional(AKnight, Sentence0A),
 )
 
 # Puzzle 1
 # A says "We are both knaves."
 # B says nothing.
 Sentence1A = And(AKnave, BKnave)
-# Sentence1B = Nothing
 knowledge1 = And(
     # one can only be a knight or a knave
     Only_one_identity,
     # Every sentence spoken by a knight is true, 
     # and every sentence spoken by a knave is false.
-    Or(And(Sentence1A, AKnight), And(Not(Sentence1A), AKnave)),
-    Or(BKnave, BKnight)
+
+    # A
+    Biconditional(AKnight, Sentence1A),
 )
 
 # Puzzle 2
@@ -61,8 +61,10 @@ Sentence2B = Or(And(AKnight, BKnave), And(AKnave, BKnight))
 knowledge2 = And(
     # one can only be a knight or a knave
     Only_one_identity,
-    Or(And(Sentence2A, AKnight), And(Not(Sentence2A), AKnave)),
-    Or(And(Sentence2B, BKnight), And(Not(Sentence2B), BKnave)),
+    # A
+    Biconditional(AKnight, Sentence2A),
+    # B
+    Biconditional(BKnight, Sentence2B),
 )
 
 # Puzzle 3
@@ -70,25 +72,26 @@ knowledge2 = And(
 # B says "A said 'I am a knave'."
 # B says "C is a knave."
 # C says "A is a knight."
-Sentence3A = AKnave
+Sentence3A1 = AKnave
 Sentence3A2 = AKnight
-B_A_said = Or(And(AKnave, AKnight), And(Not(AKnave), AKnave))
-Sentence3B = CKnave # and A said??
+Sentence3B = And(
+    # B says if A is a knight, then she is a knave
+    Biconditional(AKnight, AKnave), 
+    CKnave
+)
 Sentence3C = AKnight
 knowledge3 = And(
     # one can only be a knight or a knave
     Only_one_identity,
-    
-    # what does 'X said' mean?
     # A
     Or(
-        Or(And(Sentence3A, AKnight), And(Not(Sentence3A), AKnave)),
-        Or(And(Sentence3A2, AKnight), And(Not(Sentence3A2), AKnave)),
+        Biconditional(AKnight, Sentence3A1),
+        Biconditional(AKnight, Sentence3A2)
     ),
     # B
-    Or(And(Sentence3B, B_A_said, BKnight), And(Not(Sentence3B), Not(B_A_said), BKnave)),
+    Biconditional(BKnight, Sentence3B),
     # C
-    Or(And(Sentence3C, CKnight), And(Not(Sentence3C), CKnave)),
+    Biconditional(CKnight, Sentence3C)
 )
 
 
@@ -108,6 +111,8 @@ def main():
             for symbol in symbols:
                 if model_check(knowledge, symbol):
                     print(f"    {symbol}")
+                else:
+                    print(f"DEBUG: {symbol} not valid")
 
 
 if __name__ == "__main__":
