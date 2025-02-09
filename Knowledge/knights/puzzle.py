@@ -74,22 +74,24 @@ knowledge2 = And(
 # C says "A is a knight."
 Sentence3A1 = AKnave
 Sentence3A2 = AKnight
-Sentence3B = And(
-    # B says if A is a knight, then she is a knave
-    Biconditional(AKnight, AKnave), 
-    CKnave
-)
+Sentence3B1 = Biconditional(AKnight, AKnave)
+Sentence3B2 = CKnave
 Sentence3C = AKnight
 knowledge3 = And(
     # one can only be a knight or a knave
     Only_one_identity,
-    # A
+    # A (one of them)
     Or(
         Biconditional(AKnight, Sentence3A1),
         Biconditional(AKnight, Sentence3A2)
     ),
+    Not(And(
+        Biconditional(AKnight, Sentence3A1),
+        Biconditional(AKnight, Sentence3A2)
+    )),
     # B
-    Biconditional(BKnight, Sentence3B),
+    Biconditional(BKnight, Sentence3B1),
+    Biconditional(BKnight, Sentence3B2),
     # C
     Biconditional(CKnight, Sentence3C)
 )
@@ -111,8 +113,6 @@ def main():
             for symbol in symbols:
                 if model_check(knowledge, symbol):
                     print(f"    {symbol}")
-                else:
-                    print(f"DEBUG: {symbol} not valid")
 
 
 if __name__ == "__main__":
