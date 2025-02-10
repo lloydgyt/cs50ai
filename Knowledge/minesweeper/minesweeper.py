@@ -1,5 +1,6 @@
 import itertools
 import random
+import ucb
 
 
 class Minesweeper():
@@ -105,27 +106,46 @@ class Sentence():
         """
         Returns the set of all cells in self.cells known to be mines.
         """
-        raise NotImplementedError
+        if len(self.cells) == self.count:
+            return self.cells.copy()
+        else:
+            return set()
 
     def known_safes(self):
         """
         Returns the set of all cells in self.cells known to be safe.
         """
-        raise NotImplementedError
+        if self.count == 0:
+            return self.cells.copy()
+        else:
+            return set()
 
     def mark_mine(self, cell):
         """
         Updates internal knowledge representation given the fact that
         a cell is known to be a mine.
         """
-        raise NotImplementedError
+        # FIXME why would this happen?
+        if cell not in self.cells:
+            return
+        # try:
+        #     assert cell in self.cells, "target cell not found"
+        # except:
+        #     print(f"DEBUG: cell = {cell}")
+        #     print(f"DEBUG: current cells = {self.cells}")
+        self.cells.remove(cell)
+        self.count -= 1
 
     def mark_safe(self, cell):
         """
         Updates internal knowledge representation given the fact that
         a cell is known to be safe.
         """
-        raise NotImplementedError
+        # FIXME why would this happen?
+        if cell not in self.cells:
+            return
+        # assert cell in self.cells, "target cell not found"
+        self.cells.remove(cell)
 
 
 class MinesweeperAI():
@@ -147,7 +167,28 @@ class MinesweeperAI():
         self.safes = set()
 
         # List of sentences about the game known to be true
+        # FIXME change list to set?
         self.knowledge = []
+
+    def update_mines(self):
+        """ update the mines in knowleges"""
+        for sentence in self.knowledge:
+        # use the known mines/safes! to update knowledges
+            for mine_cell in self.mines:
+                self.mark_mine(mine_cell)
+        # use the new mines and new safes concluded by new knowledge
+            for mine_cell in sentence.known_mines():
+                self.mark_mine(mine_cell)
+
+    def update_safes(self):
+        """ update the safes in knowleges"""
+        for sentence in self.knowledge:
+        # use the known mines/safes! to update knowledges
+            for safe_cell in self.safes:
+                self.mark_safe(safe_cell)
+        # use the new mines and new safes concluded by new knowledge
+            for safe_cell in sentence.known_safes():
+                self.mark_safe(safe_cell)
 
     def mark_mine(self, cell):
         """
@@ -167,6 +208,7 @@ class MinesweeperAI():
         for sentence in self.knowledge:
             sentence.mark_safe(cell)
 
+    @ucb.trace
     def add_knowledge(self, cell, count):
         """
         Called when the Minesweeper board tells us, for a given
@@ -182,7 +224,50 @@ class MinesweeperAI():
             5) add any new sentences to the AI's knowledge base
                if they can be inferred from existing knowledge
         """
-        raise NotImplementedError
+        # 1) mark the cell as a move that has been made
+        self.moves_made.add(cell)
+        # 2) mark the cell as safe
+        self.safes.add(cell)
+        # TODO DRY rules??
+        # 3) add a new sentence to the AI's knowledge base
+        #   based on the value of `cell` and `count`
+        adjacent_cells = set()
+        for i in range(cell[0] - 1, cell[0] + 2):
+            for j in range(cell[1] - 1, cell[1] + 2):
+                # Ignore the cell itself
+                if (i, j) == cell:
+                    continue
+                # add to adjacent_cells if cell in bounds
+                # TODO if the cell is not already safe
+                if 0 <= i < self.height and 0 <= j < self.width:
+                    adjacent_cells.add((i, j))
+        new_sentence = Sentence(adjacent_cells, count)
+        self.knowledge.append(new_sentence)
+        # 4) mark any additional cells as safe or as mines
+        #    if it can be concluded based on the AI's knowledge base
+        self.update_mines()
+        self.update_safes()
+        # 5) add any new sentences to the AI's knowledge base
+        #    if they can be inferred from existing knowledge
+        knowledge_set_mutated = list(self.knowledge)
+        for sentence1 in self.knowledge.copy():
+            # FIXME why sentence1 is not in KSM?
+                # because the list is mutated!
+            knowledge_set_mutated.remove(sentence1)
+            for sentence2 in knowledge_set_mutated:
+                # TODO how to eliminate redundance knowledge?
+                # if one set contains the other
+                left_over_count = abs(sentence2.count - sentence1.count)
+                if sentence1.cells < sentence2.cells:
+                    set_intersection = sentence2.cells - sentence1.cells
+                    self.knowledge.append(Sentence(set_intersection, left_over_count))
+                elif sentence2.cells < sentence1.cells:
+                    set_intersection = sentence1.cells - sentence2.cells
+                    self.knowledge.append(Sentence(set_intersection, left_over_count))
+                # TODO what if k2 == k1?
+        self.update_mines()
+        self.update_safes()
+
 
     def make_safe_move(self):
         """
@@ -193,7 +278,13 @@ class MinesweeperAI():
         This function may use the knowledge in self.mines, self.safes
         and self.moves_made, but should not modify any of those values.
         """
-        raise NotImplementedError
+        available_options = []
+        for cell in self.safes:
+            if cell not in self.moves_made:
+                available_options.append(cell)
+        if len(available_options) <= 0:
+            return None
+        return random.choice(available_options)
 
     def make_random_move(self):
         """
@@ -202,4 +293,11 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-        raise NotImplementedError
+        # FIXME why do I need to calculate CELLS_TO_CHOOSE every time?
+        available_options = []
+        for i in range(self.height):
+            for j in range(self.width):
+                if (i, j) not in self.moves_made and (i, j) not in self.mines:
+                    available_options.append((i, j))
+        assert len(available_options) > 0, "There is no move to make!"
+        return random.choice(available_options)
