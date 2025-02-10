@@ -221,7 +221,6 @@ class MinesweeperAI():
                 useful_knowledge.append(s)
         self.knowledge = useful_knowledge
 
-    @ucb.trace
     def add_knowledge(self, cell, count):
         """
         Called when the Minesweeper board tells us, for a given
