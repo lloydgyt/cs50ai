@@ -125,14 +125,8 @@ class Sentence():
         Updates internal knowledge representation given the fact that
         a cell is known to be a mine.
         """
-        # FIXME why would this happen?
         if cell not in self.cells:
             return
-        # try:
-        #     assert cell in self.cells, "target cell not found"
-        # except:
-        #     print(f"DEBUG: cell = {cell}")
-        #     print(f"DEBUG: current cells = {self.cells}")
         self.cells.remove(cell)
         self.count -= 1
 
@@ -141,10 +135,8 @@ class Sentence():
         Updates internal knowledge representation given the fact that
         a cell is known to be safe.
         """
-        # FIXME why would this happen?
         if cell not in self.cells:
             return
-        # assert cell in self.cells, "target cell not found"
         self.cells.remove(cell)
 
 
@@ -167,8 +159,20 @@ class MinesweeperAI():
         self.safes = set()
 
         # List of sentences about the game known to be true
-        # FIXME change list to set?
         self.knowledge = []
+
+    def adjacent_cells(self, cell):
+        """ return cells adjacent to CELL"""
+        cells = set()
+        for i in range(cell[0] - 1, cell[0] + 2):
+            for j in range(cell[1] - 1, cell[1] + 2):
+                # Ignore the cell itself
+                if (i, j) == cell:
+                    continue
+                # add to adjacent_cells if cell in bounds
+                if 0 <= i < self.height and 0 <= j < self.width:
+                    cells.add((i, j))
+        return cells
 
     def update_mines(self):
         """ update the mines in knowleges"""
@@ -228,21 +232,9 @@ class MinesweeperAI():
         self.moves_made.add(cell)
         # 2) mark the cell as safe
         self.safes.add(cell)
-        # TODO DRY rules??
         # 3) add a new sentence to the AI's knowledge base
         #   based on the value of `cell` and `count`
-        adjacent_cells = set()
-        for i in range(cell[0] - 1, cell[0] + 2):
-            for j in range(cell[1] - 1, cell[1] + 2):
-                # Ignore the cell itself
-                if (i, j) == cell:
-                    continue
-                # add to adjacent_cells if cell in bounds
-                # TODO if the cell is not already safe
-                if 0 <= i < self.height and 0 <= j < self.width:
-                    adjacent_cells.add((i, j))
-        new_sentence = Sentence(adjacent_cells, count)
-        self.knowledge.append(new_sentence)
+        self.knowledge.append(Sentence(self.adjacent_cells(cell), count))
         # 4) mark any additional cells as safe or as mines
         #    if it can be concluded based on the AI's knowledge base
         self.update_mines()
@@ -251,12 +243,8 @@ class MinesweeperAI():
         #    if they can be inferred from existing knowledge
         knowledge_set_mutated = list(self.knowledge)
         for sentence1 in self.knowledge.copy():
-            # FIXME why sentence1 is not in KSM?
-                # because the list is mutated!
             knowledge_set_mutated.remove(sentence1)
             for sentence2 in knowledge_set_mutated:
-                # TODO how to eliminate redundance knowledge?
-                # if one set contains the other
                 left_over_count = abs(sentence2.count - sentence1.count)
                 if sentence1.cells < sentence2.cells:
                     set_intersection = sentence2.cells - sentence1.cells
@@ -264,7 +252,8 @@ class MinesweeperAI():
                 elif sentence2.cells < sentence1.cells:
                     set_intersection = sentence1.cells - sentence2.cells
                     self.knowledge.append(Sentence(set_intersection, left_over_count))
-                # TODO what if k2 == k1?
+        # 4) mark any additional cells as safe or as mines
+        #    if it can be concluded based on the AI's knowledge base
         self.update_mines()
         self.update_safes()
 
@@ -293,7 +282,6 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-        # FIXME why do I need to calculate CELLS_TO_CHOOSE every time?
         available_options = []
         for i in range(self.height):
             for j in range(self.width):
