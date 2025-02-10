@@ -211,6 +211,15 @@ class MinesweeperAI():
         self.safes.add(cell)
         for sentence in self.knowledge:
             sentence.mark_safe(cell)
+    
+    def _remove_redundant_knowledge(self):
+        useful_knowledge = []
+        for s in self.knowledge:
+            if len(s.cells) == 0:
+                continue
+            if s not in useful_knowledge:
+                useful_knowledge.append(s)
+        self.knowledge = useful_knowledge
 
     @ucb.trace
     def add_knowledge(self, cell, count):
@@ -256,7 +265,8 @@ class MinesweeperAI():
         #    if it can be concluded based on the AI's knowledge base
         self.update_mines()
         self.update_safes()
-
+        # clean knowledge
+        self._remove_redundant_knowledge()
 
     def make_safe_move(self):
         """
@@ -287,5 +297,6 @@ class MinesweeperAI():
             for j in range(self.width):
                 if (i, j) not in self.moves_made and (i, j) not in self.mines:
                     available_options.append((i, j))
-        assert len(available_options) > 0, "There is no move to make!"
+        if len(available_options) <= 0:
+            return None
         return random.choice(available_options)
