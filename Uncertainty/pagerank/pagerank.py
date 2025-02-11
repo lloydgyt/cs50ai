@@ -58,18 +58,14 @@ def transition_model(corpus, page, damping_factor):
     a link at random chosen from all pages in the corpus.
     """
     proba_distribution = {}
-    num_pages = len(corpus)
-    num_link_pages = len(corpus[page])
-    if num_link_pages == 0:
-        for p in corpus:
-            proba_distribution[p] = 1 / num_pages
-        return proba_distribution
+    modified_corpus = no_link_to_all_links(corpus)
+    num_pages = len(modified_corpus)
+    num_link_pages = len(modified_corpus[page])
 
-    for p in corpus:
-        # FIXME do I need to 1.0 / num_pages?
+    for p in modified_corpus:
         proba_distribution[p] = (1 - damping_factor) * (1 / num_pages)
 
-    for link_p in corpus[page]:
+    for link_p in modified_corpus[page]:
         proba_distribution[link_p] += damping_factor * (1 / num_link_pages)
     
     return proba_distribution
@@ -83,7 +79,26 @@ def sample_pagerank(corpus, damping_factor, n):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    # TODO
+    previous_page = random.choice(list(corpus))
+    # initialize pageranks
+    pageranks = {}
+    for p in corpus:
+        pageranks[p] = 0
+
+    for i in range(n):
+        # use transition_model to get probability distribution 
+        proba_distribution = transition_model(corpus, previous_page, damping_factor)
+        # pick 1 next_page using the distribution 
+        pages = list(proba_distribution.keys())
+        weights = list(proba_distribution.values())
+        next_page = random.choices(pages, weights=weights, k=1)[0]
+        # add (1 / n) to pageranks[page]
+        pageranks[next_page] += 1 / n        
+        # update previous page
+        previous_page = next_page
+    
+    return pageranks
+
 
 
 def iterate_pagerank(corpus, damping_factor):
@@ -95,7 +110,62 @@ def iterate_pagerank(corpus, damping_factor):
     their estimated PageRank value (a value between 0 and 1). All
     PageRank values should sum to 1.
     """
-    # TODO
+    # initialize
+    pageranks = {}
+    num_pages = len(corpus)
+    for p in corpus:
+        pageranks[p] = 1 / num_pages
+
+    # treat non-link pages as all-link pages
+    modified_corpus = no_link_to_all_links(corpus)    
+
+    # a dict where keys are pages, values are difference between last update
+    delta = {}
+
+    while True:
+        # update each pages in corpus
+        for p in modified_corpus:
+            # calculate new_pagerank 
+            pagerank_from_incoming = incoming_term(modified_corpus, p, pageranks, damping_factor)
+            pagerank_from_nonincoming = (1 - damping_factor) / num_pages
+            new_pagerank = pagerank_from_incoming + pagerank_from_nonincoming
+            delta[p] = abs(new_pagerank - pageranks[p])
+            pageranks[p] = new_pagerank
+
+        # keep iterating until delta < 0.001
+        if all([d < 0.001 for d in delta.values()]):
+            break
+
+    return pageranks
+
+
+def incoming_term(corpus, page, current_pageranks, damping_factor):
+    """ calculate term in pagerank of PAGE contributed by incoming pages"""
+    # get all the incoming pages and the number of there links
+    incoming_pageranks_and_num_links = []
+    for p in corpus:
+        if page in corpus[p]:
+            pagerank = current_pageranks[p]
+            num_links = len(corpus[p])
+            incoming_pageranks_and_num_links.append((pagerank, num_links))
+    return damping_factor * sum([PR / NL for PR, NL in incoming_pageranks_and_num_links])
+
+def no_link_to_all_links(corpus):
+    """ 
+    return the modified version of corpus
+
+    A page that has no links at all should be interpreted as
+    having one link for every page in the corpus (including itself).
+    """
+    modified_corpus = {}
+    for p in corpus:
+        modified_corpus[p] = corpus[p].copy()
+        if len(modified_corpus[p]) == 0:
+            # add all pages as link
+            for i in corpus:
+                modified_corpus[p].add(i)
+    return modified_corpus
+    
 
 
 if __name__ == "__main__":
