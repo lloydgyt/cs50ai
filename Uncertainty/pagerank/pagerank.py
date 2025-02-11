@@ -85,7 +85,7 @@ def sample_pagerank(corpus, damping_factor, n):
     for p in corpus:
         pageranks[p] = 0
 
-    for i in range(n):
+    for _ in range(n):
         # use transition_model to get probability distribution 
         proba_distribution = transition_model(corpus, previous_page, damping_factor)
         # pick 1 next_page using the distribution 
