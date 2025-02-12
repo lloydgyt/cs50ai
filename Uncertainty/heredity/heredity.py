@@ -1,6 +1,7 @@
 import csv
 import itertools
 import sys
+import math
 
 PROBS = {
 
@@ -57,7 +58,7 @@ def main():
                 False: 0
             }
         }
-        for person in people
+        for person in people # iterate through the keys
     }
 
     # Loop over all sets of people who might have the trait
@@ -139,7 +140,124 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone in set `have_trait` has the trait, and
         * everyone not in set` have_trait` does not have the trait.
     """
-    raise NotImplementedError
+    # sorts the type of problem each person is interested in
+    # _g()
+
+    # TODO calculate no parent first? or recursion?
+    proba = list()
+    # for each person in people, calculate
+    # TODO use _g() to refractor
+    assumed_condition = _g(people, one_gene, two_genes, have_trait)
+    for person in people:
+        if person in one_gene:
+            num_genes = 1
+        elif person in two_genes:
+            num_genes = 2
+        else:
+            num_genes = 0
+        if person in have_trait:
+            trait = True
+        else:
+            trait = False
+        # TODO will there be single parent?
+        has_parent = True if people[person]["mother"] is not None else False
+        proba.append(_f(person, assumed_condition))
+        # everyone needs to be calculated! so find out who belongs to which
+
+    # multiply every proba together
+    return math.prod(proba)
+
+# TODO rename
+# TODO why use people here?
+def _f(person, assumed_condition):
+    """
+    return the probability PERSON has based in the interested settings
+    """
+    # TODO using recursion, may include redundant computation if parents have more than 1 child
+    # TODO the type below should be in the arguments
+    # have parent or not?
+        # if has parent, knowing their parent will help
+    # there are 6 types
+        # have 0, 1, 2 genes
+        # yes, no trait
+    has_parent = assumed_condition[person]["has_parent"]
+    num_genes = assumed_condition[person]["num_genes"]
+    trait = assumed_condition[person]["trait"]
+    if not has_parent:
+        # unconditional proba
+        # TODO don't you need to consider their trait? 
+        # seems like the project designer didn't consider
+        probability = PROBS["gene"][num_genes] * PROBS["trait"][num_genes][trait]
+    else:
+        # conditional probability based on parents
+        # get their parents assumed condition
+        # TODO must be able to get assumed condition from somewhere
+        # calculate father contribute 0 or 1 genes
+        father = assumed_condition[person]["father"]
+        f_0 = _h(father, 0, assumed_condition)
+        f_1 = _h(father, 1, assumed_condition)
+        # calculate mother contribute 0 or 1 genes
+        mother = assumed_condition[person]["mother"]
+        m_0 = _h(mother, 0, assumed_condition)
+        m_1 = _h(mother, 1, assumed_condition)
+
+        if num_genes == 0:
+            probability_genes = f_0 * m_0
+        elif num_genes == 1:
+            probability_genes = f_1 * m_0 + f_0 * m_1
+        elif num_genes == 2: 
+            probability_genes = f_1 * m_1
+
+        # compute probability of trait
+        probability = probability_genes * PROBS["trait"][num_genes][trait]
+    return probability
+        
+
+# TODO rename
+def _g(people, one_gene, two_genes, have_trait):
+    """ return a dictionary containing all assumed condition for everyone """
+    assumed_condition = dict()
+    for person in people:
+        # TODO refactor later! using dict comprehension?
+        if person in one_gene:
+            num_genes = 1
+        elif person in two_genes:
+            num_genes = 2
+        else:
+            num_genes = 0
+        if person in have_trait:
+            trait = True
+        else:
+            trait = False
+        # TODO will there be single parent?
+        has_parent = True if people[person]["mother"] is not None else False
+        assumed_condition[person] = {
+            "num_genes":num_genes,
+            "trait":trait,
+            "has_parent":has_parent,
+            "mother": people[person]["mother"],
+            "father": people[person]["father"]
+        }
+    return assumed_condition
+
+# TODO rename
+def _h(person, num, assumed_condition):
+    """ 
+    Return the probability that PERSON pass down NUM genes
+    to their child
+
+    Assuming that mutation happens after passing the genes
+    """
+    assert num == 0 or num == 1
+    # calculate probability when passing 0 genes
+    if assumed_condition[person]["num_genes"] == 0:
+        p = 1 - PROBS["mutation"]
+    elif assumed_condition[person]["num_genes"] == 1:
+        p = 0.5 * PROBS["mutation"] + 0.5 * (1 - PROBS["mutation"])
+    elif assumed_condition[person]["num_genes"] == 2:
+        p = PROBS["mutation"]
+
+    return p if num == 0 else (1 - p)
 
 
 def update(probabilities, one_gene, two_genes, have_trait, p):
@@ -149,7 +267,7 @@ def update(probabilities, one_gene, two_genes, have_trait, p):
     Which value for each distribution is updated depends on whether
     the person is in `have_gene` and `have_trait`, respectively.
     """
-    raise NotImplementedError
+    # TODO 
 
 
 def normalize(probabilities):
@@ -157,7 +275,7 @@ def normalize(probabilities):
     Update `probabilities` such that each probability distribution
     is normalized (i.e., sums to 1, with relative proportions the same).
     """
-    raise NotImplementedError
+    # TODO 
 
 
 if __name__ == "__main__":
