@@ -99,7 +99,9 @@ class CrosswordCreator():
         (Remove any values that are inconsistent with a variable's unary
          constraints; in this case, the length of the word.)
         """
-        raise NotImplementedError
+        for v in self.crossword.variables.copy():
+            for word in self.domains[v].copy():
+                if len(word) != v.length: self.domains[v].remove(word)
 
     def revise(self, x, y):
         """
@@ -110,7 +112,25 @@ class CrosswordCreator():
         Return True if a revision was made to the domain of `x`; return
         False if no revision was made.
         """
-        raise NotImplementedError
+        revised = False
+        overlap_index = self.crossword.overlaps[(x, y)]
+        # if not overlap
+        if overlap_index == None:
+            return revised
+        overlap_x, overlap_y = overlap_index
+        for word_x in self.domains[x].copy():
+            # TODO use any()
+            flag = False
+            for word_y in self.domains[y].copy():
+                # TODO wrap as a function
+                if word_x[overlap_x] == word_y[overlap_y]:
+                    flag = True
+                    break
+            if not flag:
+                self.domains[x].remove(word_x)
+                revised = True
+        return revised
+
 
     def ac3(self, arcs=None):
         """
@@ -121,14 +141,35 @@ class CrosswordCreator():
         Return True if arc consistency is enforced and no domains are empty;
         return False if one or more domains end up empty.
         """
-        raise NotImplementedError
+        if arcs is None:
+            arcs = set() # TODO does set support pop()? why insisted on using Queue?
+            for x in self.crossword.variables.copy():
+                for y in self.crossword.variables.copy():
+                    if x != y: arcs.add((x, y))
+
+        while len(arcs) != 0:
+            # pop one out
+            x, y = arcs.pop()
+            # revise it (may get empty?)
+            if self.revise(x, y):
+                # if domain empty, return False
+                if len(self.domains[x]) == 0: return False
+                # add neighbor
+                for n in self.crossword.neighbors(x) - {y}:
+                    arcs.add((n, x))
+
+        return True
 
     def assignment_complete(self, assignment):
         """
         Return True if `assignment` is complete (i.e., assigns a value to each
         crossword variable); return False otherwise.
         """
-        raise NotImplementedError
+        for v in self.crossword.variables:
+            if v not in assignment:
+                return False
+        return True
+
 
     def consistent(self, assignment):
         """
@@ -144,7 +185,8 @@ class CrosswordCreator():
         The first value in the list, for example, should be the one
         that rules out the fewest values among the neighbors of `var`.
         """
-        raise NotImplementedError
+        # TODO 
+
 
     def select_unassigned_variable(self, assignment):
         """
@@ -154,7 +196,8 @@ class CrosswordCreator():
         degree. If there is a tie, any of the tied variables are acceptable
         return values.
         """
-        raise NotImplementedError
+        # TODO 
+
 
     def backtrack(self, assignment):
         """
@@ -165,7 +208,9 @@ class CrosswordCreator():
 
         If no assignment is possible, return None.
         """
-        raise NotImplementedError
+        # TODO 
+        # TODO with or without inference? the tools are all here!
+        # and all heuristics should be applied, too
 
 
 def main():
