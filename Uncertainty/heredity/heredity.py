@@ -63,8 +63,11 @@ def main():
 
     # Loop over all sets of people who might have the trait
     names = set(people)
+    # use have_trait, one_gene, two_genes to set all 
+    # the Random Variables in Bayesian's Network
     for have_trait in powerset(names):
 
+        # the first half is for fixing EVIDENCE
         # Check if current set of people violates known information
         fails_evidence = any(
             (people[person]["trait"] is not None and
@@ -79,6 +82,7 @@ def main():
             for two_genes in powerset(names - one_gene):
 
                 # Update probabilities with new joint probability
+                # only HAVE_TRAIT (evidence) is fixed, loop over all other hidden variable
                 p = joint_probability(people, one_gene, two_genes, have_trait)
                 update(probabilities, one_gene, two_genes, have_trait, p)
 
@@ -140,71 +144,45 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone in set `have_trait` has the trait, and
         * everyone not in set` have_trait` does not have the trait.
     """
-    # sorts the type of problem each person is interested in
-    # _g()
-
-    # TODO calculate no parent first? or recursion?
+    # a list containing probabilities for everyone with condition setup in question
     proba = list()
     # for each person in people, calculate
-    # TODO use _g() to refractor
-    assumed_condition = _g(people, one_gene, two_genes, have_trait)
+    assumed_condition = setup_condition(people, one_gene, two_genes, have_trait)
     for person in people:
-        if person in one_gene:
-            num_genes = 1
-        elif person in two_genes:
-            num_genes = 2
-        else:
-            num_genes = 0
-        if person in have_trait:
-            trait = True
-        else:
-            trait = False
-        # TODO will there be single parent?
-        has_parent = True if people[person]["mother"] is not None else False
-        proba.append(_f(person, assumed_condition))
-        # everyone needs to be calculated! so find out who belongs to which
+        proba.append(proba_person(person, assumed_condition))
 
     # multiply every proba together
     return math.prod(proba)
 
-# TODO rename
-# TODO why use people here?
-def _f(person, assumed_condition):
+
+def proba_person(person, assumed_condition):
     """
     return the probability PERSON has based in the interested settings
     """
-    # TODO using recursion, may include redundant computation if parents have more than 1 child
-    # TODO the type below should be in the arguments
-    # have parent or not?
-        # if has parent, knowing their parent will help
-    # there are 6 types
-        # have 0, 1, 2 genes
-        # yes, no trait
+    # collect information needed from ASSUMED_CONDITION
     has_parent = assumed_condition[person]["has_parent"]
     num_genes = assumed_condition[person]["num_genes"]
     trait = assumed_condition[person]["trait"]
+    father = assumed_condition[person]["father"]
+    mother = assumed_condition[person]["mother"]
     if not has_parent:
         # unconditional proba
-        # TODO don't you need to consider their trait? 
-        # seems like the project designer didn't consider
         probability = PROBS["gene"][num_genes] * PROBS["trait"][num_genes][trait]
     else:
         # conditional probability based on parents
-        # get their parents assumed condition
-        # TODO must be able to get assumed condition from somewhere
         # calculate father contribute 0 or 1 genes
-        father = assumed_condition[person]["father"]
-        f_0 = _h(father, 0, assumed_condition)
-        f_1 = _h(father, 1, assumed_condition)
+        f_0 = pass_num_genes_proba(father, 0, assumed_condition)
+        f_1 = pass_num_genes_proba(father, 1, assumed_condition)
         # calculate mother contribute 0 or 1 genes
-        mother = assumed_condition[person]["mother"]
-        m_0 = _h(mother, 0, assumed_condition)
-        m_1 = _h(mother, 1, assumed_condition)
+        m_0 = pass_num_genes_proba(mother, 0, assumed_condition)
+        m_1 = pass_num_genes_proba(mother, 1, assumed_condition)
 
         if num_genes == 0:
             probability_genes = f_0 * m_0
         elif num_genes == 1:
-            probability_genes = f_1 * m_0 + f_0 * m_1
+            # either mother contributed 1 and father contributed 0
+            # or mother contributed 0 and father contributed 1
+            probability_genes = f_0 * m_1 + f_1 * m_0
         elif num_genes == 2: 
             probability_genes = f_1 * m_1
 
@@ -213,35 +191,52 @@ def _f(person, assumed_condition):
     return probability
         
 
-# TODO rename
-def _g(people, one_gene, two_genes, have_trait):
-    """ return a dictionary containing all assumed condition for everyone """
+def setup_condition(people, one_gene, two_genes, have_trait):
+    """
+    Set up condition for everyone (set the value for each random variables in Bayes' network)
+    Return a dictionary containing all assumed conditions for everyone.
+
+    Parameters:
+    people (dict): A dictionary where keys are people's names and values are dictionaries 
+                   containing information about each person, including their mother and father.
+    one_gene (set): A set of people who have one gene.
+    two_genes (set): A set of people who have two genes.
+    have_trait (set): A set of people who have the trait.
+
+    Returns:
+    dict: A dictionary where keys are people's names and values are dictionaries containing 
+          the following keys:
+          - "num_genes": The number of genes the person has (0, 1, or 2).
+          - "trait": A boolean indicating whether the person has the trait.
+          - "has_parent": A boolean indicating whether the person has a known parent.
+          - "mother": The name of the person's mother.
+          - "father": The name of the person's father.
+    """
     assumed_condition = dict()
     for person in people:
-        # TODO refactor later! using dict comprehension?
         if person in one_gene:
             num_genes = 1
         elif person in two_genes:
             num_genes = 2
         else:
             num_genes = 0
+
         if person in have_trait:
             trait = True
         else:
             trait = False
-        # TODO will there be single parent?
         has_parent = True if people[person]["mother"] is not None else False
         assumed_condition[person] = {
-            "num_genes":num_genes,
-            "trait":trait,
-            "has_parent":has_parent,
+            "num_genes": num_genes,
+            "trait": trait,
+            "has_parent": has_parent,
             "mother": people[person]["mother"],
             "father": people[person]["father"]
         }
     return assumed_condition
 
-# TODO rename
-def _h(person, num, assumed_condition):
+
+def pass_num_genes_proba(person, num, assumed_condition):
     """ 
     Return the probability that PERSON pass down NUM genes
     to their child
@@ -267,10 +262,9 @@ def update(probabilities, one_gene, two_genes, have_trait, p):
     Which value for each distribution is updated depends on whether
     the person is in `have_gene` and `have_trait`, respectively.
     """
-    # TODO looks like every one is using assumed_condition
-    # DRY rules?
-    # why not make it a global?
     for person in probabilities.keys():
+        # everyone will be added p twice, once in ["gene"], once in ["trait"]
+        # because we'll print these 2 probabilities for each person finally
         if person in one_gene:
             probabilities[person]["gene"][1] += p
         elif person in two_genes:
