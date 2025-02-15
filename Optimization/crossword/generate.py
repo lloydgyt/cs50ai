@@ -1,4 +1,5 @@
 import sys
+import itertools
 
 from crossword import *
 
@@ -142,7 +143,7 @@ class CrosswordCreator():
         return False if one or more domains end up empty.
         """
         if arcs is None:
-            arcs = set() # TODO does set support pop()? why insisted on using Queue?
+            arcs = set() # TODO does set support pop()? why insisted on using Queue?  # TODO refactor using lib tool?
             for x in self.crossword.variables.copy():
                 for y in self.crossword.variables.copy():
                     if x != y: arcs.add((x, y))
@@ -176,7 +177,44 @@ class CrosswordCreator():
         Return True if `assignment` is consistent (i.e., words fit in crossword
         puzzle without conflicting characters); return False otherwise.
         """
-        raise NotImplementedError
+        return all([
+        self.is_unique(assignment),
+        self.is_assignment_nc(assignment),
+        self.is_assignment_ac(assignment)
+        ])
+    
+    
+    def is_unique(self, assignment):
+        words = assignment.values()
+        uniq_words = set(words)
+        return False if len(words) != len(uniq_words) else True
+
+
+    def is_assignment_nc(self, assignment):
+        for v in assignment.keys():
+            if len(assignment[v]) != v.length: return False
+        return True
+
+
+    def is_assignment_ac(self, assignment):
+        for x, y in itertools.combinations(assignment, 2):
+            if self.is_conflict(assignment[x], assignment[y], x, y):
+                return False
+        return True
+    
+
+    def is_conflict(self, word_x, word_y, x, y):
+        """ 
+        check if word_x (the word for X) conflicts with word_y (the word for Y)
+        """
+
+        overlap_index = self.crossword.overlaps[(x, y)]
+        # if not overlap, then not conflict
+        if overlap_index == None:
+            return False
+        overlap_x, overlap_y = overlap_index
+        return word_x[overlap_x] != word_y[overlap_y]
+
 
     def order_domain_values(self, var, assignment):
         """
@@ -185,7 +223,8 @@ class CrosswordCreator():
         The first value in the list, for example, should be the one
         that rules out the fewest values among the neighbors of `var`.
         """
-        # TODO 
+        # TODO upgrade this with heuristic
+        return self.domains[var].copy()
 
 
     def select_unassigned_variable(self, assignment):
@@ -196,7 +235,12 @@ class CrosswordCreator():
         degree. If there is a tie, any of the tied variables are acceptable
         return values.
         """
-        # TODO 
+        # TODO upgrade this using the minimum remaining value heuristic and then the degree heuristic
+        unassigned_vars = self.crossword.variables - set(assignment)
+        if len(unassigned_vars) == 0:
+            return None
+        return list(unassigned_vars)[0]
+
 
 
     def backtrack(self, assignment):
@@ -208,9 +252,30 @@ class CrosswordCreator():
 
         If no assignment is possible, return None.
         """
-        # TODO 
-        # TODO with or without inference? the tools are all here!
-        # and all heuristics should be applied, too
+        # if current assignment leads to a successful assignment, return it
+        # if all the value tried for the selected variable fails,
+        # there is no possible solution to current assignment, return None
+
+        # select an unassigned var
+        var = self.select_unassigned_variable(assignment)
+        # all variable assigned
+        if var is None:
+            return assignment
+        # try all values in its domain, add it to assignment
+        for value in self.order_domain_values(var, assignment):
+            assignment[var] = value
+            # TODO add inference here
+            # check the system is still consistent?
+            if self.consistent(assignment):
+                new_assignment = self.backtrack(assignment)
+                if new_assignment is not None:
+                    return new_assignment
+            else:
+                # discard this value
+                del assignment[var]
+                # TODO remove inference, too
+        return None
+
 
 
 def main():
