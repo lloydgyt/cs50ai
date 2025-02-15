@@ -1,5 +1,5 @@
 import sys
-import itertools
+from itertools import combinations, permutations
 
 from crossword import *
 
@@ -102,7 +102,8 @@ class CrosswordCreator():
         """
         for v in self.crossword.variables.copy():
             for word in self.domains[v].copy():
-                if len(word) != v.length: self.domains[v].remove(word)
+                if len(word) != v.length: 
+                    self.domains[v].remove(word)
 
     def revise(self, x, y):
         """
@@ -116,14 +117,11 @@ class CrosswordCreator():
         revised = False
         assert self.has_arc(x, y)
         for word_x in self.domains[x].copy():
-            flag = False
-            for word_y in self.domains[y].copy():
-                if self.is_satisfied(word_x, word_y, x, y):
-                    flag = True
-                    break
-            if not flag:
-                self.domains[x].remove(word_x)
-                revised = True
+            if any(self.is_satisfied(word_x, word_y, x, y) 
+                   for word_y in self.domains[y].copy()):
+                continue
+            self.domains[x].remove(word_x)
+            revised = True
         return revised
 
 
@@ -137,7 +135,7 @@ class CrosswordCreator():
         return False if one or more domains end up empty.
         """
         if arcs is None:
-            arcs = set(itertools.permutations(self.crossword.variables, 2))
+            arcs = set(permutations(self.crossword.variables, 2))
 
         while len(arcs) != 0:
             # pop one out
@@ -169,10 +167,8 @@ class CrosswordCreator():
         Return True if `assignment` is complete (i.e., assigns a value to each
         crossword variable); return False otherwise.
         """
-        for v in self.crossword.variables:
-            if v not in assignment:
-                return False
-        return True
+        return all(v in assignment 
+                   for v in self.crossword.variables)
 
 
     def consistent(self, assignment):
@@ -180,12 +176,12 @@ class CrosswordCreator():
         Return True if `assignment` is consistent (i.e., words fit in crossword
         puzzle without conflicting characters); return False otherwise.
         """
-        return all([
-        self.is_unique(assignment),
-        self.is_assignment_nc(assignment),
-        self.is_assignment_ac(assignment)
-        ])
-    
+        if self.is_unique(assignment) and \
+        self.is_assignment_nc(assignment) and \
+        self.is_assignment_ac(assignment):
+            return True
+        else:
+            return False
     
     def is_unique(self, assignment):
         words = assignment.values()
@@ -194,18 +190,12 @@ class CrosswordCreator():
 
 
     def is_assignment_nc(self, assignment):
-        for v in assignment.keys():
-            if len(assignment[v]) != v.length: return False
-        return True
+        return all(len(assignment[v]) == v.length for v in assignment.keys())
 
 
     def is_assignment_ac(self, assignment):
-        for x, y in itertools.combinations(assignment, 2):
-            if not self.has_arc(x, y):
-                continue
-            if not self.is_satisfied(assignment[x], assignment[y], x, y):
-                return False
-        return True
+        return all(not self.has_arc(x, y) or self.is_satisfied(assignment[x], assignment[y], x, y) 
+                   for x, y in combinations(assignment, 2))
     
 
     def is_satisfied(self, word_x, word_y, x, y):
