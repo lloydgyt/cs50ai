@@ -114,17 +114,11 @@ class CrosswordCreator():
         False if no revision was made.
         """
         revised = False
-        overlap_index = self.crossword.overlaps[(x, y)]
-        # if not overlap
-        if overlap_index == None:
-            return revised
-        overlap_x, overlap_y = overlap_index
+        assert self.has_arc(x, y)
         for word_x in self.domains[x].copy():
-            # TODO use any()
             flag = False
             for word_y in self.domains[y].copy():
-                # TODO wrap as a function
-                if word_x[overlap_x] == word_y[overlap_y]:
+                if self.is_satisfied(word_x, word_y, x, y):
                     flag = True
                     break
             if not flag:
@@ -143,15 +137,14 @@ class CrosswordCreator():
         return False if one or more domains end up empty.
         """
         if arcs is None:
-            arcs = set() # TODO does set support pop()? why insisted on using Queue?  # TODO refactor using lib tool?
-            for x in self.crossword.variables.copy():
-                for y in self.crossword.variables.copy():
-                    if x != y: arcs.add((x, y))
+            arcs = set(itertools.permutations(self.crossword.variables, 2))
 
         while len(arcs) != 0:
             # pop one out
             x, y = arcs.pop()
             # revise it (may get empty?)
+            if not self.has_arc(x, y):
+                continue
             if self.revise(x, y):
                 # if domain empty, return False
                 if len(self.domains[x]) == 0: return False
@@ -160,6 +153,16 @@ class CrosswordCreator():
                     arcs.add((n, x))
 
         return True
+
+    def has_arc(self, x, y):
+        """ 
+        check if there is an arc (binary constraint) between X and Y
+        """
+        if self.crossword.overlaps[(x, y)] is None:
+            return False
+        else:
+            return True
+
 
     def assignment_complete(self, assignment):
         """
@@ -198,22 +201,20 @@ class CrosswordCreator():
 
     def is_assignment_ac(self, assignment):
         for x, y in itertools.combinations(assignment, 2):
-            if self.is_conflict(assignment[x], assignment[y], x, y):
+            if not self.has_arc(x, y):
+                continue
+            if not self.is_satisfied(assignment[x], assignment[y], x, y):
                 return False
         return True
     
 
-    def is_conflict(self, word_x, word_y, x, y):
+    def is_satisfied(self, word_x, word_y, x, y):
         """ 
         check if word_x (the word for X) conflicts with word_y (the word for Y)
         """
-
-        overlap_index = self.crossword.overlaps[(x, y)]
-        # if not overlap, then not conflict
-        if overlap_index == None:
-            return False
-        overlap_x, overlap_y = overlap_index
-        return word_x[overlap_x] != word_y[overlap_y]
+        assert self.has_arc(x, y)
+        overlap_x_index, overlap_y_index = self.crossword.overlaps[(x, y)]
+        return word_x[overlap_x_index] == word_y[overlap_y_index]
 
 
     def order_domain_values(self, var, assignment):
@@ -223,8 +224,18 @@ class CrosswordCreator():
         The first value in the list, for example, should be the one
         that rules out the fewest values among the neighbors of `var`.
         """
-        # TODO upgrade this with heuristic
-        return self.domains[var].copy()
+        domain = list(self.domains[var])
+        neighbors = list(self.crossword.neighbors(var))
+        unassigned_neighbors = [n for n in neighbors if n not in assignment]
+        def num_ruleout(word):
+            result = 0
+            for neighbor in unassigned_neighbors:
+                for word_n in self.domains[neighbor]:
+                    if self.is_satisfied(word, word_n, var, neighbor):
+                        continue
+                    result += 1
+            return result
+        return sorted(domain, key=num_ruleout)
 
 
     def select_unassigned_variable(self, assignment):
@@ -235,11 +246,12 @@ class CrosswordCreator():
         degree. If there is a tie, any of the tied variables are acceptable
         return values.
         """
-        # TODO upgrade this using the minimum remaining value heuristic and then the degree heuristic
         unassigned_vars = self.crossword.variables - set(assignment)
         if len(unassigned_vars) == 0:
             return None
-        return list(unassigned_vars)[0]
+        def num_remaining_value(var):
+            return len(self.domains[var])
+        return sorted(list(unassigned_vars), key=num_remaining_value)[0]
 
 
 
@@ -262,10 +274,19 @@ class CrosswordCreator():
         if var is None:
             return assignment
         # try all values in its domain, add it to assignment
-        for value in self.order_domain_values(var, assignment):
+        domain_values = self.order_domain_values(var, assignment)
+        assert domain_values is not None
+        for value in domain_values:
             assignment[var] = value
-            # TODO add inference here
-            # check the system is still consistent?
+            # inference - reduce the domain
+            original_domain = self.domains.copy()
+            # var's domain contains only "VALUE"
+            self.domains[var] = set()
+            self.domains[var].add(value)
+            # add pairs related to VAR to ARCS
+            arcs = set([(n, var) for n in self.crossword.neighbors(var)]) 
+            self.ac3(arcs)
+            # check if the assignment is still consistent?
             if self.consistent(assignment):
                 new_assignment = self.backtrack(assignment)
                 if new_assignment is not None:
@@ -273,7 +294,8 @@ class CrosswordCreator():
             else:
                 # discard this value
                 del assignment[var]
-                # TODO remove inference, too
+                # remove inference
+                self.domains = original_domain
         return None
 
 
